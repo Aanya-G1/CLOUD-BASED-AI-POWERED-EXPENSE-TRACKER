@@ -1,0 +1,210 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Financial Analytics</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&display=swap" rel="stylesheet">
+
+  <style>
+    body {
+      font-family: 'Inter', sans-serif;
+      background: #f3f4f6;
+      margin: 0;
+      padding: 0;
+      display: flex;
+      justify-content: center;
+      padding-top: 40px;
+    }
+
+    .container {
+      width: 95%;
+      max-width: 1100px;
+    }
+
+    h1 {
+      text-align: center;
+      font-size: 2.4rem;
+      font-weight: 700;
+      color: #4f46e5;
+      margin-bottom: 25px;
+    }
+
+    .grid {
+      display: grid;
+      gap: 20px;
+    }
+    .grid-4 { grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); }
+    .grid-2 { grid-template-columns: repeat(auto-fit, minmax(350px, 1fr)); }
+
+    .card {
+      background: white;
+      border-radius: 12px;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.05);
+      padding: 20px;
+    }
+
+    .card h2 {
+      font-size: 1.6rem;
+      color: #4f46e5;
+      margin-bottom: 10px;
+    }
+
+    .big-number {
+      font-size: 2rem;
+      font-weight: 700;
+      margin-top: 10px;
+    }
+
+    .insights-list li {
+      margin-bottom: 8px;
+      font-size: 1.1rem;
+      display: flex;
+      align-items: center;
+    }
+
+    .insights-list li span {
+      font-size: 1.5rem;
+      margin-right: 10px;
+      color: #4f46e5;
+    }
+
+    .button-row {
+      margin-top: 35px;
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+      gap: 20px;
+    }
+
+    .btn {
+      display: block;
+      text-align: center;
+      padding: 14px;
+      background: #6366f1;
+      color: white;
+      border-radius: 10px;
+      font-size: 1.1rem;
+      text-decoration: none;
+    }
+    .btn:hover { background: #4f46e5; }
+  </style>
+
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+
+<body>
+  <a class="backup-btn" href="https://drive.google.com/drive/my-drive" target="_blank">
+  ☁ Backup to Drive
+</a>
+
+  <div class="container">
+    <h1>📊 Financial Analytics Dashboard</h1>
+
+    <div id="content"></div>
+  </div>
+
+  <script>
+    const API_URL = "http://127.0.0.1:5000";
+
+    fetch(`${API_URL}/analytics`)
+      .then(r => r.json())
+      .then(data => {
+        const c = document.getElementById("content");
+
+        c.innerHTML = `
+          <!-- 🟪 Summary Cards -->
+          <div class="grid grid-4">
+            <div class="card">
+              <p>Total Income</p>
+              <div class="big-number" style="color:#16a34a;">₹${data.summary.total_income.toFixed(2)}</div>
+            </div>
+
+            <div class="card">
+              <p>Total Expenses</p>
+              <div class="big-number" style="color:#dc2626;">₹${data.summary.total_expenses.toFixed(2)}</div>
+            </div>
+
+            <div class="card">
+              <p>Net Savings</p>
+              <div class="big-number" style="color:${data.summary.net_savings >= 0 ? '#16a34a' : '#dc2626'};">
+                ₹${data.summary.net_savings.toFixed(2)}
+              </div>
+            </div>
+
+            <div class="card">
+              <p>Savings Rate</p>
+              <div class="big-number" style="color:#4f46e5;">
+                ${data.summary.savings_rate_percent.toFixed(1)}%
+              </div>
+            </div>
+          </div>
+
+          <br>
+
+          <div class="grid grid-2">
+            <!-- 🟪 Insights -->
+            <div class="card">
+              <h2>AI Insights</h2>
+              <ul class="insights-list">
+                ${data.insights.map(i => `<li><span>•</span> ${i}</li>`).join('')}
+              </ul>
+            </div>
+
+            <!-- 🟪 Chart -->
+            ${data.category_breakdown.length > 0 ? `
+              <div class="card">
+                <h2>Spending by Category</h2>
+                <canvas id="chart"></canvas>
+              </div>
+            ` : ""}
+          </div>
+
+          <br>
+
+          <!-- 🟪 Top Expenses -->
+          ${data.top_expenses.length > 0 ? `
+            <div class="card">
+              <h2>Top 5 Expenses</h2>
+              ${data.top_expenses.map(e => `
+                <div style="display:flex; justify-content:space-between; padding:10px; background:#fdf2f8; margin-bottom:8px; border-radius:8px;">
+                  <span>${e.description}</span>
+                  <strong style="color:#dc2626;">₹${e.amount.toFixed(2)}</strong>
+                </div>
+              `).join('')}
+            </div>
+          ` : ""}
+          
+          <!-- Button Row -->
+          <div class="button-row">
+            <a href="${API_URL}/export/excel" class="btn">⬇ Download Excel Report</a>
+            <a href="/dashboard" class="btn">⬅ Back to Dashboard</a>
+          </div>
+        `;
+
+        // Draw Category Chart
+        if (data.category_breakdown.length > 0) {
+          new Chart(document.getElementById("chart"), {
+            type: "doughnut",
+            data: {
+              labels: data.category_breakdown.map(x => x.category),
+              datasets: [{
+                data: data.category_breakdown.map(x => x.amount),
+                backgroundColor: [
+                  "#6366f1", "#4f46e5", "#818cf8",
+                  "#a5b4fc", "#c7d2fe", "#e0e7ff"
+                ]
+              }]
+            },
+            options: { responsive: true, plugins: { legend: { position: 'bottom' } } }
+          });
+        }
+      })
+      .catch(() => {
+        document.getElementById("content").innerHTML =
+          `<div class="card" style="text-align:center; color:#dc2626; font-size:1.2rem;">
+             Error!
+           </div>`;
+      });
+  </script>
+</body>
+</html>
